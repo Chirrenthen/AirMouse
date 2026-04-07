@@ -37,8 +37,8 @@ Control your mouse entirely with hand gestures using your webcam. Built with Med
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/virtual-mouse.git
-cd virtual-mouse
+git clone https://github.com/Chirrenthen/AirMouse.git
+cd AirMouse
 ```
 
 ### 2. Create a virtual environment
