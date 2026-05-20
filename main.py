@@ -1,12 +1,6 @@
 """
-Virtual Mouse — Hand Gesture Controller
-OS     : Windows 11
-Python : 3.12
-Deps   : mediapipe>=0.10.13  opencv-python  pynput  numpy
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GESTURE MAP
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 ☝  Index only              → Move mouse
 ✌  Index+Middle open       → Click-ready
 ✌  Index+Middle pinch      → Left click
@@ -17,7 +11,6 @@ GESTURE MAP
 🖐  All 5 fingers           → PAUSE (failsafe)
 👋 Wave (wrist L→R→L)      → Double click
 🤞 Index+Middle crossed     → Drag lock toggle
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 import cv2
@@ -27,7 +20,7 @@ import time
 import ctypes
 from pynput.mouse import Button, Controller
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# Config
 wCam, hCam    = 640, 480
 frameR        = 60            # smaller margin = more reach incl. taskbar
 smoothening   = 5
@@ -37,13 +30,13 @@ WAVE_THRESH   = 50
 WAVE_TIMEOUT  = 0.7
 DRAG_DIST     = 35            # pinch dist to activate drag
 
-# ── Screen (DPI-aware) ────────────────────────────────────────────────────────
+# Screen
 user32 = ctypes.windll.user32
 user32.SetProcessDPIAware()
 wScr   = user32.GetSystemMetrics(0)
 hScr   = user32.GetSystemMetrics(1)
 
-# ── Init ──────────────────────────────────────────────────────────────────────
+
 mouse    = Controller()
 cap      = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH,  wCam)
@@ -71,7 +64,7 @@ status_color    = (0, 255, 120)
 
 print(f"[INFO] Screen: {wScr}x{hScr} | Cam: {wCam}x{hCam} | Q to quit")
 
-# ── Gesture helpers ───────────────────────────────────────────────────────────
+# Gestures
 
 def is_fist(fingers):
     return fingers == [0, 0, 0, 0, 0]
@@ -128,7 +121,7 @@ def detect_wave(wrist_x, now):
     wave_last_x = wrist_x
     return False
 
-# ── UI draw ───────────────────────────────────────────────────────────────────
+# UI
 
 def draw_ui(img, status, color, fps, drag_on):
     # Bottom legend bar
@@ -161,7 +154,7 @@ def draw_ui(img, status, color, fps, drag_on):
     # Active zone — mapped to FULL screen including taskbar
     cv2.rectangle(img, (frameR, frameR), (wCam-frameR, hCam-frameR), (60,60,180), 1)
 
-# ── Main loop ─────────────────────────────────────────────────────────────────
+
 while True:
     success, img = cap.read()
     if not success:
@@ -185,7 +178,7 @@ while True:
         fingers  = detector.fingersUp(mirrored=True)
         wrist_x  = detector.getWristX()
 
-        # ── FAILSAFE ──────────────────────────────────────────────────────
+        # FAILSAFE
         if is_fist(fingers) or is_open_palm(fingers):
             if drag_active:
                 mouse.release(Button.left)
@@ -193,14 +186,14 @@ while True:
             status_text  = "PAUSED"
             status_color = (0, 80, 220)
 
-        # ── WAVE → double click ───────────────────────────────────────────
+        # WAVE → double click
         elif detect_wave(wrist_x, now) and click_cooldown == 0:
             mouse.click(Button.left, 2)
             click_cooldown = 25
             status_text    = "DOUBLE CLICK"
             status_color   = (255, 220, 0)
 
-        # ── SCROLL UP: horns \\m/ ─────────────────────────────────────────
+        # SCROLL UP
         elif is_scroll_up(fingers):
             if scroll_cooldown == 0:
                 mouse.scroll(0, SCROLL_AMOUNT)
@@ -210,7 +203,7 @@ while True:
             cv2.putText(img, "▲▲▲", (wCam//2-30, hCam//2),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0,240,180), 3, cv2.LINE_AA)
 
-        # ── SCROLL DOWN: thumb+pinky ──────────────────────────────────────
+        # Scroll Down
         elif is_scroll_down(fingers):
             if scroll_cooldown == 0:
                 mouse.scroll(0, -SCROLL_AMOUNT)
@@ -220,7 +213,7 @@ while True:
             cv2.putText(img, "▼▼▼", (wCam//2-30, hCam//2),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0,180,255), 3, cv2.LINE_AA)
 
-        # ── DRAG: index+middle+ring up ────────────────────────────────────
+        # Drag
         elif is_drag_gesture(fingers):
             x1, y1 = lmList[8][1], lmList[8][2]
             x3 = np.interp(x1, (frameR, wCam-frameR), (0, wScr))
@@ -248,7 +241,7 @@ while True:
                 mouse.release(Button.left)
                 drag_active = False
 
-            # ── MOVE ──────────────────────────────────────────────────────
+            # Move
             if is_move(fingers):
                 x1, y1 = lmList[8][1], lmList[8][2]
                 # Map full camera zone → full screen (0,0) to (wScr, hScr)
@@ -266,7 +259,7 @@ while True:
                 status_text  = "MOVE"
                 status_color = (80, 255, 180)
 
-            # ── LEFT CLICK ────────────────────────────────────────────────
+            # Left Click
             if is_left_click_mode(fingers):
                 length, img, lineInfo = detector.findDistance(8, 12, img)
                 if length < CLICK_DIST and click_cooldown == 0:
@@ -279,7 +272,7 @@ while True:
                     status_text  = "CLICK READY"
                     status_color = (0, 200, 255)
 
-            # ── RIGHT CLICK ───────────────────────────────────────────────
+            # Right Click
             elif is_right_click_mode(fingers):
                 length, img, lineInfo = detector.findDistance(4, 8, img)
                 if length < CLICK_DIST and click_cooldown == 0:
@@ -293,7 +286,7 @@ while True:
         if click_cooldown  > 0: click_cooldown  -= 1
         if scroll_cooldown > 0: scroll_cooldown -= 1
 
-    # ── FPS + draw UI ─────────────────────────────────────────────────────────
+    # Fps and ui
     cTime = time.time()
     fps   = 1 / (cTime - pTime) if pTime else 0
     pTime = cTime
